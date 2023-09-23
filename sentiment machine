@@ -1,0 +1,69 @@
+import numpy as np
+import pandas as pd
+from nltk.corpus import stopwords
+from nltk.stem import SnowballStemmer
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from gensim.models import Word2Vec
+import nltk
+
+# Download NLTK stopwords
+nltk.download("stopwords")
+
+# Load the IMDb dataset or replace with your dataset
+# Example: data = pd.read_csv('your_dataset.csv')
+
+# Preprocessing function
+def preprocess_text(text):
+    # Tokenization
+    words = nltk.word_tokenize(text.lower())
+
+    # Remove stopwords and non-alphabetic tokens
+    words = [word for word in words if word.isalpha() and word not in stopwords.words("english")]
+
+    # Stemming
+    stemmer = SnowballStemmer("english")
+    words = [stemmer.stem(word) for word in words]
+
+    return " ".join(words)
+
+# Preprocess the text data
+data['review'] = data['review'].apply(preprocess_text)
+
+# Split the data into training and testing sets
+X = data['review']
+y = data['sentiment']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# TF-IDF vectorization
+vectorizer = TfidfVectorizer(max_features=5000)
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Train a logistic regression model with grid search for hyperparameter tuning
+param_grid = {'C': [0.01, 0.1, 1, 10]}
+grid_search = GridSearchCV(LogisticRegression(max_iter=1000), param_grid, cv=5)
+grid_search.fit(X_train_tfidf, y_train)
+best_model = grid_search.best_estimator_
+
+# Make predictions on the test data
+y_pred = best_model.predict(X_test_tfidf)
+
+# Evaluate the model
+accuracy = accuracy_score(y_test, y_pred)
+report = classification_report(y_test, y_pred)
+confusion = confusion_matrix(y_test, y_pred)
+
+print(f'Accuracy: {accuracy}')
+print(f'Classification Report:\n{report}')
+print(f'Confusion Matrix:\n{confusion}')
+
+# Word embedding using Word2Vec
+sentences = [nltk.word_tokenize(review) for review in data['review']]
+word2vec_model = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=0)
+
+# Example: Get the Word2Vec vector for a word
+vector = word2vec_model.wv['good']
+print(f'Word Vector for "good": {vector}')
